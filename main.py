@@ -5,21 +5,19 @@ import re
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
-# Database connection function
 def get_db_connection():
     return psycopg2.connect(
-        dbname='project3',
+        dbname='postgres',
         user='postgres',
         password='admin',
         host='localhost',
         port='5432'
     )
 
-# Validate email format
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
 
-@app.route("/home")
+@app.route("/")
 def home():
     return render_template("home.html")
 
@@ -151,6 +149,75 @@ def loginhello():
 
     return render_template("loginhello.html")
 
+
+
+# @app.route("/loginhello", methods=["GET", "POST"])
+# def loginhello():
+#     if request.method == "POST":
+#         email = request.form["email"]
+#         username = request.form["username"]
+#         password = request.form["password"]
+#         semester_name = request.form["semester"]
+        
+#         if is_valid_email(email):
+#             connection = get_db_connection()
+#             cursor = connection.cursor()
+
+#             try:
+#                 cursor.execute("SELECT semester_id FROM sem WHERE name = %s;", (semester_name,))
+#                 semester_result = cursor.fetchone()
+
+#                 if semester_result:
+#                     semester_id = semester_result[0]
+#                 else:
+#                     cursor.execute("INSERT INTO sem (name) VALUES (%s) RETURNING semester_id;", (semester_name,))
+#                     semester_id = cursor.fetchone()[0]
+#                     connection.commit()
+
+#                 cursor.execute(
+#                     "SELECT password, email, username FROM \"user\" WHERE email = %s;",
+#                     (email,)
+#                 )
+#                 result = cursor.fetchone()
+
+#                 # Check if the user is an admin
+#                 admin_email = "admin@example.com"  # Replace with your admin email
+#                 admin_password = "adminpassword"   # Replace with your admin password
+
+#                 if email == admin_email and password == admin_password:
+#                     session["user"] = email
+#                     return redirect(url_for("admin_subjects"))  # Redirect to the admin subjects page
+                
+#                 if result and result[0] == password and result[1] == email and result[2] == username:
+#                     session["user"] = email
+#                     session["semester_id"] = semester_id
+
+#                     cursor.execute(
+#                         "SELECT subject_id, name FROM subjects WHERE semester_id = %s;",
+#                         (semester_id,)
+#                     )
+#                     subjects = cursor.fetchall()
+#                     session["subjects"] = [{"id": subject[0], "name": subject[1]} for subject in subjects]
+
+#                     return redirect(url_for("user"))
+#                 else:
+#                     flash("Invalid username/email or password.")
+#                     return redirect(url_for("loginhello"))
+
+#             except Exception as e:
+#                 flash(f"An error occurred: {str(e)}")
+#                 return redirect(url_for("loginhello"))
+
+#             finally:
+#                 cursor.close()
+#                 connection.close()
+#         else:
+#             flash("Invalid email format. Please use a valid email address.")
+#             return redirect(url_for("loginhello"))
+
+#     return render_template("loginhello.html")
+
+
 @app.route("/user")
 def user():
     if "user" in session:
@@ -159,7 +226,9 @@ def user():
     else:
         return redirect(url_for("loginhello"))
 
-@app.route("/subject/<int:subject_id>")
+
+
+@app.route("/subject/<int:subject_id>erec")
 def subject_description(subject_id):
     connection = get_db_connection()
     cursor = connection.cursor()
@@ -183,9 +252,92 @@ def subject_description(subject_id):
     
 @app.route("/logout")
 def logout():
-    session.clear()  # Clear the session
+    session.clear()  
     flash("You have been logged out.")
     return redirect(url_for("home"))     
 
+
+
+@app.route("/adminsign", methods=["GET", "POST"])
+def adminsign():
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        admin_credentials = {
+            "agrimaregmi2004@gmail.com": "Agrima11",
+            "admin2@example.com": "adminpassword2",
+            "admin3@example.com": "adminpassword3",
+        }
+
+        if email in admin_credentials and password == admin_credentials[email]:
+            session["admin"] = email
+            return redirect(url_for("admin_subjects"))
+        else:
+            flash("Invalid admin credentials.")
+            return redirect(url_for("adminsign"))
+
+    return render_template("adminsign.html")
+
+@app.route("/admin/subjects", methods=["GET", "POST"])
+def admin_subjects():
+    if request.method == "POST":
+        subject_name = request.form["subject_name"]
+        semester_name = request.form["semester"]
+
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+
+            # Get or insert semester_id
+            cursor.execute("SELECT semester_id FROM sem WHERE name = %s;", (semester_name,))
+            semester_result = cursor.fetchone()
+
+            if semester_result:
+                semester_id = semester_result[0]
+            else:
+                cursor.execute("INSERT INTO sem (name) VALUES (%s) RETURNING semester_id;", (semester_name,))
+                semester_id = cursor.fetchone()[0]
+                connection.commit()
+
+            # Insert subject into subjects table
+            cursor.execute(
+                "INSERT INTO subjects (name, semester_id) VALUES (%s, %s) RETURNING subject_id;",
+                (subject_name, semester_id)
+            )
+            subject_id = cursor.fetchone()[0]
+            connection.commit()
+
+            flash(f"Subject '{subject_name}' added successfully!")
+            return redirect(url_for("admin_subjects"))
+
+        except Exception as e:
+            flash(f"An error occurred: {str(e)}")
+            return redirect(url_for("admin_subjects"))
+
+        finally:
+            cursor.close()
+            connection.close()
+
+    # Fetch all subjects for display
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT subject_id, name FROM subjects;")
+        subjects = cursor.fetchall()
+
+        return render_template("admin_subjects.html", subjects=subjects)
+
+    except Exception as e:
+        flash(f"An error occurred: {str(e)}")
+        return redirect(url_for("home"))
+
+    finally:
+        cursor.close()
+        connection.close()
+        
+
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
+
