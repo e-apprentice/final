@@ -5,15 +5,22 @@ import re
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
+# def get_db_connection():
+#     return psycopg2.connect(
+#         dbname='postgres',
+#         user='postgres',
+#         password='admin',
+#         host='localhost',
+#         port='5432'
+#     )
 def get_db_connection():
     return psycopg2.connect(
-        dbname='postgres',
-        user='postgres',
-        password='admin',
-        host='localhost',
+        dbname='final_dbms',
+        user='final_dbms_user',
+        password='kiyFsG55ZbMbw59HJi49ere5c8bOQBHf',
+        host='dpg-cqq3a02j1k6c73da6nbg-a.oregon-postgres.render.com',
         port='5432'
-    )
-
+     )
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
 
